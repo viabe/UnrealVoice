@@ -10,6 +10,8 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
+#include "Net/VoiceConfig.h" //VOIPTalker 헤더
+#include "GameFramework/PlayerState.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -50,15 +52,67 @@ AVoiceMapCharacter::AVoiceMapCharacter()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
-	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
-	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+	// VOIP Talker 컴포넌트를 생성하고, VOIPTalkerComponent 포인터에 할당합니다.
+	VOIPTalkerComponent = CreateDefaultSubobject<UVOIPTalker>(TEXT("VOIPTalker"));
 }
 
 void AVoiceMapCharacter::BeginPlay()
 {
 	// Call the base class  
 	Super::BeginPlay();
+
+	// VOIP 초기화 작업을 호출합니다.
+	InitializeVOIP();
 }
+
+void AVoiceMapCharacter::SetMicThreshold(float Threshold)
+{
+	if (VOIPTalkerComponent)
+	{
+		UVOIPStatics::SetMicThreshold(Threshold);
+	}
+}
+
+void AVoiceMapCharacter::RegisterWithPlayerState()
+{
+	if (VOIPTalkerComponent && GetPlayerState())
+	{
+		VOIPTalkerComponent->RegisterWithPlayerState(GetPlayerState());
+	}
+}
+
+bool AVoiceMapCharacter::IsLocallyControlled() const
+{
+	return IsPlayerControlled();
+}
+
+void AVoiceMapCharacter::InitializeVOIP()
+{
+	if (VOIPTalkerComponent)
+	{
+		// VOIPTalkerComponent가 유효한지 확인합니다.
+		if (IsValid(VOIPTalkerComponent))
+		{
+			// 플레이어 상태에 VOIPTalker를 등록합니다.
+			RegisterWithPlayerState();
+
+			// 마이크 임계값을 설정합니다.
+			SetMicThreshold(-1.0f);
+
+			// 로컬 플레이어가 제어 중일 때만 VOIP 관련 설정을 진행합니다.
+			if (IsLocallyControlled())
+			{
+				// 콘솔 명령을 실행하여 VOIP를 활성화합니다.
+				APlayerController* PlayerController = Cast<APlayerController>(GetController());
+				if (PlayerController)
+				{
+					PlayerController->ConsoleCommand("OSS.VoiceLoopback 1");
+				}
+			}
+		}
+	}
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 // Input
@@ -86,6 +140,7 @@ void AVoiceMapCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 
 		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AVoiceMapCharacter::Look);
+
 	}
 	else
 	{

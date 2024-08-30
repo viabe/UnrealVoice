@@ -69,5 +69,23 @@ public:
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+
+public:
+	// VOIP Talker 컴포넌트를 선언합니다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Voice Chat", meta = (AllowPrivateAccess = "true"))
+	class UVOIPTalker* VOIPTalkerComponent;
+
+	// 마이크 임계값을 설정합니다.
+	void SetMicThreshold(float Threshold);
+
+	// 플레이어 상태에 등록합니다.
+	void RegisterWithPlayerState();
+
+	// 로컬 플레이어가 제어 중인지 확인합니다.
+	bool IsLocallyControlled() const;
+
+	// VOIP 관련 초기화 작업을 수행합니다.
+	void InitializeVOIP();
+
 };
 
